@@ -1,40 +1,239 @@
--- Grow a Garden - Loading Screen with Kick Message
+-- GXScript Hub - Auto Middle Moon Cat Only
+-- Created for educational purposes
+
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
 local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
--- Create the screen GUI
+-- Create main GUI
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "LoadingScreen"
+screenGui.Name = "GXScriptHub"
+screenGui.Parent = playerGui
 screenGui.ResetOnSpawn = false
-screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- Create a frame for the loading box
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0.4, 0, 0.2, 0)
-frame.Position = UDim2.new(0.3, 0, 0.4, 0)
-frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-frame.BorderSizePixel = 0
-frame.BackgroundTransparency = 0.2
-frame.Parent = screenGui
+-- Main frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 300, 0, 150)
+mainFrame.Position = UDim2.new(0.5, -150, 0.5, -75)
+mainFrame.BackgroundColor3 = Color3.fromRGB(0, 50, 25)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
 
--- UICorner for rounded edges
+-- Add corner rounding
 local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 16)
-corner.Parent = frame
+corner.CornerRadius = UDim.new(0, 12)
+corner.Parent = mainFrame
 
--- Create loading message label
-local label = Instance.new("TextLabel")
-label.Size = UDim2.new(1, -20, 1, -20)
-label.Position = UDim2.new(0, 10, 0, 10)
-label.BackgroundTransparency = 1
-label.TextScaled = true
-label.Font = Enum.Font.GothamBold
-label.TextColor3 = Color3.fromRGB(255, 255, 255)
-label.TextWrapped = true
-label.Text = "If being kicked please be patient as the script is taking you to a less populated server.\nDo not re-execute again."
-label.Parent = frame
+-- Title bar
+local titleBar = Instance.new("Frame")
+titleBar.Name = "TitleBar"
+titleBar.Size = UDim2.new(1, 0, 0, 40)
+titleBar.Position = UDim2.new(0, 0, 0, 0)
+titleBar.BackgroundColor3 = Color3.fromRGB(0, 255, 127)
+titleBar.BorderSizePixel = 0
+titleBar.Parent = mainFrame
 
--- Optional: Prevent user actions
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 12)
+titleCorner.Parent = titleBar
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Name = "TitleLabel"
+titleLabel.Size = UDim2.new(1, -80, 1, 0)
+titleLabel.Position = UDim2.new(0, 10, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "🌱 GXScript Hub"
+titleLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
+titleLabel.TextScaled = true
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.Parent = titleBar
+
+-- Close button
+local closeButton = Instance.new("TextButton")
+closeButton.Name = "CloseButton"
+closeButton.Size = UDim2.new(0, 30, 0, 30)
+closeButton.Position = UDim2.new(1, -35, 0, 5)
+closeButton.BackgroundColor3 = Color3.fromRGB(255, 85, 85)
+closeButton.Text = "✕"
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.TextScaled = true
+closeButton.Font = Enum.Font.GothamBold
+closeButton.BorderSizePixel = 0
+closeButton.Parent = titleBar
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 8)
+closeCorner.Parent = closeButton
+
+-- Minimize button
+local minimizeButton = Instance.new("TextButton")
+minimizeButton.Name = "MinimizeButton"
+minimizeButton.Size = UDim2.new(0, 30, 0, 30)
+minimizeButton.Position = UDim2.new(1, -70, 0, 5)
+minimizeButton.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
+minimizeButton.Text = "−"
+minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+minimizeButton.TextScaled = true
+minimizeButton.Font = Enum.Font.GothamBold
+minimizeButton.BorderSizePixel = 0
+minimizeButton.Parent = titleBar
+
+local minimizeCorner = Instance.new("UICorner")
+minimizeCorner.CornerRadius = UDim.new(0, 8)
+minimizeCorner.Parent = minimizeButton
+
+-- Auto Middle Moon Cat Button
+local moonCatButton = Instance.new("TextButton")
+moonCatButton.Name = "MoonCatButton"
+moonCatButton.Size = UDim2.new(1, -40, 0, 50)
+moonCatButton.Position = UDim2.new(0, 20, 0, 60)
+moonCatButton.BackgroundColor3 = Color3.fromRGB(0, 255, 200)
+moonCatButton.Text = "🌙 Auto Middle Moon Cat"
+moonCatButton.TextColor3 = Color3.fromRGB(0, 0, 0)
+moonCatButton.TextScaled = true
+moonCatButton.Font = Enum.Font.GothamBold
+moonCatButton.BorderSizePixel = 0
+moonCatButton.Parent = mainFrame
+
+local buttonCorner = Instance.new("UICorner")
+buttonCorner.CornerRadius = UDim.new(0, 10)
+buttonCorner.Parent = moonCatButton
+
+-- Status label
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Name = "StatusLabel"
+statusLabel.Size = UDim2.new(1, -40, 0, 25)
+statusLabel.Position = UDim2.new(0, 20, 0, 120)
+statusLabel.BackgroundColor3 = Color3.fromRGB(0, 100, 50)
+statusLabel.Text = "Status: Ready"
+statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+statusLabel.TextScaled = true
+statusLabel.Font = Enum.Font.Gotham
+statusLabel.BorderSizePixel = 0
+statusLabel.Parent = mainFrame
+
+local statusCorner = Instance.new("UICorner")
+statusCorner.CornerRadius = UDim.new(0, 8)
+statusCorner.Parent = statusLabel
+
+-- Toggle variables
+local autoMiddleMoonCatEnabled = false
+
+-- Status update function
+local function updateStatus(text, color)
+    statusLabel.Text = "Status: " .. text
+    if color then
+        statusLabel.BackgroundColor3 = color
+    end
+    wait(2)
+    statusLabel.BackgroundColor3 = Color3.fromRGB(0, 100, 50)
+end
+
+-- Auto Middle Moon Cat function
+local autoMiddleMoonCatConnection
+local foundMoonCat = false
+local function toggleAutoMiddleMoonCat()
+    autoMiddleMoonCatEnabled = not autoMiddleMoonCatEnabled
+    
+    if autoMiddleMoonCatEnabled then
+        moonCatButton.Text = "🌙 Auto Middle Moon Cat [ON]"
+        moonCatButton.BackgroundColor3 = Color3.fromRGB(0, 255, 255)
+        updateStatus("Searching for Moon Cat...", Color3.fromRGB(255, 165, 0))
+        
+        autoMiddleMoonCatConnection = RunService.Heartbeat:Connect(function()
+            if not autoMiddleMoonCatEnabled then return end
+            
+            foundMoonCat = false
+            
+            -- Look for Moon Cat pet (Legendary lavender/purple pet)
+            for _, obj in pairs(workspace:GetDescendants()) do
+                -- Check for Moon Cat specifically or pets folder
+                if obj.Name == "Moon Cat" or (obj.Name:lower():find("moon") and obj.Name:lower():find("cat")) then
+                    -- Look for the pet's main part
+                    local petPart = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("PrimaryPart") or obj:FindFirstChild("Torso") or obj:FindFirstChild("Head")
+                    
+                    if petPart and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                        foundMoonCat = true
+                        
+                        -- Position Moon Cat optimally for its AOE napping ability (~20 studs range)
+                        -- Keep it centered and slightly elevated for maximum coverage
+                        local playerPosition = player.Character.HumanoidRootPart.Position
+                        local optimalPosition = playerPosition + Vector3.new(0, 3, 0) -- 3 studs above for better AOE
+                        
+                        -- Smooth positioning to prevent jittery movement
+                        petPart.CFrame = CFrame.lookAt(optimalPosition, playerPosition + player.Character.HumanoidRootPart.CFrame.LookVector)
+                        
+                        -- Update status when Moon Cat is found and positioned
+                        if not statusLabel.Text:find("Moon Cat Active") then
+                            updateStatus("Moon Cat Active - AOE Ready!", Color3.fromRGB(128, 0, 255))
+                        end
+                        break
+                    end
+                end
+            end
+            
+            -- If no Moon Cat found, update status
+            if not foundMoonCat and not statusLabel.Text:find("Searching") then
+                updateStatus("Moon Cat not found...", Color3.fromRGB(255, 100, 100))
+            end
+            
+            wait(0.05) -- Faster update for smoother positioning
+        end)
+    else
+        moonCatButton.Text = "🌙 Auto Middle Moon Cat [OFF]"
+        moonCatButton.BackgroundColor3 = Color3.fromRGB(0, 255, 200)
+        updateStatus("Moon Cat positioning disabled", Color3.fromRGB(255, 85, 85))
+        if autoMiddleMoonCatConnection then
+            autoMiddleMoonCatConnection:Disconnect()
+        end
+    end
+end
+
+-- Button hover effects
+moonCatButton.MouseEnter:Connect(function()
+    local currentColor = moonCatButton.BackgroundColor3
+    local tween = TweenService:Create(moonCatButton, TweenInfo.new(0.2), {
+        BackgroundColor3 = Color3.fromRGB(
+            math.min(currentColor.R * 255 + 30, 255),
+            math.min(currentColor.G * 255 + 30, 255),
+            math.min(currentColor.B * 255 + 30, 255)
+        ) / 255
+    })
+    tween:Play()
+end)
+
+moonCatButton.MouseLeave:Connect(function()
+    local originalColor = autoMiddleMoonCatEnabled and Color3.fromRGB(0, 255, 255) or Color3.fromRGB(0, 255, 200)
+    local tween = TweenService:Create(moonCatButton, TweenInfo.new(0.2), {BackgroundColor3 = originalColor})
+    tween:Play()
+end)
+
+-- Connect button
+moonCatButton.MouseButton1Click:Connect(toggleAutoMiddleMoonCat)
+
+-- GUI Controls
+closeButton.MouseButton1Click:Connect(function()
+    screenGui:Destroy()
+end)
+
+local isMinimized = false
+minimizeButton.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    if isMinimized then
+        mainFrame:TweenSize(UDim2.new(0, 300, 0, 40), "Out", "Quad", 0.3, true)
+        minimizeButton.Text = "+"
+    else
+        mainFrame:TweenSize(UDim2.new(0, 300, 0, 150), "Out", "Quad", 0.3, true)
+        minimizeButton.Text = "−"
+    end
+end)-- Optional: Prevent user actions
 local blur = Instance.new("BlurEffect")
 blur.Size = 24
 blur.Parent = game:GetService("Lighting")
