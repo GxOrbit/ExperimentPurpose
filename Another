@@ -155,70 +155,49 @@ local function toggleAutoMiddleMoonCat()
             
             foundMoonCat = false
             
-            -- Search through all pets and models more thoroughly
-            for _, obj in pairs(workspace:GetChildren()) do
-                -- Check pets folder first
-                if obj.Name == "Pets" or obj.Name == "pets" then
-                    for _, pet in pairs(obj:GetChildren()) do
-                        if pet.Name == "Moon Cat" or pet.Name:find("Moon Cat") or pet.Name:find("MoonCat") then
-                            local petPart = pet:FindFirstChild("HumanoidRootPart") or pet:FindFirstChild("Torso") or pet:FindFirstChild("Head") or pet.PrimaryPart
-                            
-                            if petPart and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                                foundMoonCat = true
-                                
-                                -- Force Moon Cat to exact middle position of player
-                                local playerCFrame = player.Character.HumanoidRootPart.CFrame
-                                petPart.CFrame = playerCFrame * CFrame.new(0, 3, 0) -- Direct positioning
-                                petPart.Anchored = false -- Make sure it can move
-                                
-                                -- Force velocity to zero to stop wandering
-                                if petPart:FindFirstChild("BodyVelocity") then
-                                    petPart.BodyVelocity:Destroy()
-                                end
-                                if petPart:FindFirstChild("BodyPosition") then
-                                    petPart.BodyPosition:Destroy()
-                                end
-                                
-                                -- Create body position to keep it in place
-                                local bodyPos = Instance.new("BodyPosition")
-                                bodyPos.MaxForce = Vector3.new(4000, 4000, 4000)
-                                bodyPos.Position = playerCFrame.Position + Vector3.new(0, 3, 0)
-                                bodyPos.D = 500
-                                bodyPos.P = 3000
-                                bodyPos.Parent = petPart
-                                
-                                break
-                            end
-                        end
-                    end
-                end
-                
-                -- Also check direct workspace children
-                if obj.Name == "Moon Cat" or obj.Name:find("Moon Cat") or obj.Name:find("MoonCat") then
-                    local petPart = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Torso") or obj:FindFirstChild("Head") or obj.PrimaryPart
+            -- Search for Moon Cat more thoroughly
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if obj.Name == "Moon Cat" or obj.Name:find("Moon Cat") or obj.Name:find("MoonCat") or 
+                   (obj:FindFirstChild("Humanoid") and obj.Name:lower():find("moon")) then
+                    
+                    local petPart = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Torso") or 
+                                   obj:FindFirstChild("Head") or obj.PrimaryPart
                     
                     if petPart and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                         foundMoonCat = true
                         
-                        -- Force Moon Cat to exact middle position of player
-                        local playerCFrame = player.Character.HumanoidRootPart.CFrame
-                        petPart.CFrame = playerCFrame * CFrame.new(0, 3, 0)
-                        petPart.Anchored = false
+                        -- Calculate the CENTER of your plot area (middle position)
+                        local playerPos = player.Character.HumanoidRootPart.Position
+                        local centerPosition = Vector3.new(playerPos.X, playerPos.Y + 2, playerPos.Z) -- 2 studs above ground level
                         
-                        -- Remove existing body movers
+                        -- FORCE teleport Moon Cat to exact center
+                        petPart.CFrame = CFrame.new(centerPosition)
+                        petPart.Anchored = true -- Lock it in place completely
+                        
+                        -- Remove ALL body movers that might move it
                         for _, child in pairs(petPart:GetChildren()) do
-                            if child:IsA("BodyPosition") or child:IsA("BodyVelocity") or child:IsA("BodyAngularVelocity") then
+                            if child:IsA("BodyPosition") or child:IsA("BodyVelocity") or child:IsA("BodyAngularVelocity") or
+                               child:IsA("BodyMover") or child:IsA("AlignPosition") or child:IsA("VectorForce") then
                                 child:Destroy()
                             end
                         end
                         
-                        -- Create body position to lock it in middle
-                        local bodyPos = Instance.new("BodyPosition")
-                        bodyPos.MaxForce = Vector3.new(4000, 4000, 4000)
-                        bodyPos.Position = playerCFrame.Position + Vector3.new(0, 3, 0)
-                        bodyPos.D = 500
-                        bodyPos.P = 3000
-                        bodyPos.Parent = petPart
+                        -- Disable pet AI/pathfinding if it exists
+                        local humanoid = obj:FindFirstChild("Humanoid")
+                        if humanoid then
+                            humanoid.PlatformStand = true -- Prevents movement
+                            humanoid:ChangeState(Enum.HumanoidStateType.Physics) -- Force physics state
+                        end
+                        
+                        -- Stop any scripts that might move the pet
+                        for _, script in pairs(obj:GetDescendants()) do
+                            if script:IsA("Script") or script:IsA("LocalScript") then
+                                if script.Name:lower():find("follow") or script.Name:lower():find("move") or 
+                                   script.Name:lower():find("walk") or script.Name:lower():find("pet") then
+                                    script.Disabled = true
+                                end
+                            end
+                        end
                         
                         break
                     end
@@ -238,15 +217,24 @@ local function toggleAutoMiddleMoonCat()
             autoMiddleMoonCatConnection:Disconnect()
         end
         
-        -- Clean up body positions when disabled
+        -- Restore Moon Cat's normal behavior when disabled
         for _, obj in pairs(workspace:GetDescendants()) do
             if obj.Name == "Moon Cat" or obj.Name:find("Moon Cat") or obj.Name:find("MoonCat") then
-                local petPart = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Torso") or obj:FindFirstChild("Head") or obj.PrimaryPart
+                local petPart = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Torso") or 
+                               obj:FindFirstChild("Head") or obj.PrimaryPart
                 if petPart then
-                    for _, child in pairs(petPart:GetChildren()) do
-                        if child:IsA("BodyPosition") then
-                            child:Destroy()
-                        end
+                    petPart.Anchored = false -- Allow movement again
+                end
+                
+                local humanoid = obj:FindFirstChild("Humanoid")
+                if humanoid then
+                    humanoid.PlatformStand = false -- Restore normal movement
+                end
+                
+                -- Re-enable any disabled scripts
+                for _, script in pairs(obj:GetDescendants()) do
+                    if script:IsA("Script") or script:IsA("LocalScript") then
+                        script.Disabled = false
                     end
                 end
             end
