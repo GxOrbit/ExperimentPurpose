@@ -140,7 +140,6 @@ end
 -- Auto Middle Moon Cat function
 local autoMiddleMoonCatConnection
 local moonCatFound = false
-local lastMoonCatPosition = nil
 
 local function toggleAutoMiddleMoonCat()
     autoMiddleMoonCatEnabled = not autoMiddleMoonCatEnabled
@@ -152,50 +151,78 @@ local function toggleAutoMiddleMoonCat()
         moonCatButton.TextColor3 = Color3.fromRGB(0, 0, 0) -- Black text on green
         updateStatus("Searching for Moon Cat...", Color3.fromRGB(255, 165, 0))
         
-        -- First, find the Moon Cat ONCE and store it
+        -- Find equipped Moon Cat - search everywhere
         local moonCatPet = nil
         local moonCatPart = nil
         
-        -- Search for Moon Cat (only once to prevent lag)
+        -- Search in ALL possible locations where Moon Cat could be
         for _, obj in pairs(workspace:GetDescendants()) do
-            if obj.Name == "Moon Cat" and obj:FindFirstChild("Humanoid") then
-                moonCatPet = obj
-                moonCatPart = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Torso") or obj:FindFirstChild("Head")
-                break
+            -- Look for any model that might be Moon Cat
+            if obj:IsA("Model") and obj:FindFirstChild("Humanoid") then
+                -- Check if it's Moon Cat by name variations
+                local name = obj.Name:lower()
+                if name:find("moon") or name:find("cat") or name == "moon cat" or name:find("mooncat") then
+                    moonCatPet = obj
+                    moonCatPart = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Torso") or obj:FindFirstChild("Head")
+                    print("Found Moon Cat:", obj.Name) -- Debug
+                    break
+                end
+            end
+        end
+        
+        -- If not found, search in player's character area
+        if not moonCatPet and player.Character then
+            for _, obj in pairs(player.Character.Parent:GetChildren()) do
+                if obj:IsA("Model") and obj ~= player.Character and obj:FindFirstChild("Humanoid") then
+                    local name = obj.Name:lower()
+                    if name:find("moon") or name:find("cat") then
+                        moonCatPet = obj
+                        moonCatPart = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Torso") or obj:FindFirstChild("Head")
+                        print("Found Moon Cat in player area:", obj.Name) -- Debug
+                        break
+                    end
+                end
             end
         end
         
         if moonCatPet and moonCatPart and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            updateStatus("Moon Cat Found! Positioning...", Color3.fromRGB(85, 255, 85))
+            updateStatus("Moon Cat Found! Moving to center...", Color3.fromRGB(85, 255, 85))
             
-            -- Calculate CENTER position ONCE
-            local playerPos = player.Character.HumanoidRootPart.Position
-            local centerPos = Vector3.new(playerPos.X, playerPos.Y + 2, playerPos.Z)
+            -- Get the humanoid to make it walk
+            local humanoid = moonCatPet:FindFirstChild("Humanoid")
             
-            -- TELEPORT Moon Cat to center ONCE
-            moonCatPart.CFrame = CFrame.new(centerPos)
-            
-            -- Create a simple connection that runs less frequently
             autoMiddleMoonCatConnection = RunService.Heartbeat:Connect(function()
                 if not autoMiddleMoonCatEnabled or not moonCatPet or not moonCatPart then return end
                 if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
                 
-                -- Only update position if Moon Cat moved away from center
-                local currentPos = moonCatPart.Position
-                local targetPos = player.Character.HumanoidRootPart.Position + Vector3.new(0, 2, 0)
-                local distance = (currentPos - targetPos).Magnitude
+                -- Calculate middle position (center of your character)
+                local playerPos = player.Character.HumanoidRootPart.Position
+                local middlePos = Vector3.new(playerPos.X, playerPos.Y, playerPos.Z) -- Same level as player
                 
-                -- Only move if Moon Cat is more than 2 studs away from center
-                if distance > 2 then
-                    moonCatPart.CFrame = CFrame.new(targetPos)
+                -- Check distance from middle
+                local currentPos = moonCatPart.Position
+                local distance = (Vector3.new(currentPos.X, 0, currentPos.Z) - Vector3.new(middlePos.X, 0, middlePos.Z)).Magnitude
+                
+                -- If Moon Cat is more than 3 studs away from middle, make it walk there
+                if distance > 3 then
+                    if humanoid then
+                        humanoid:MoveTo(middlePos) -- Make it WALK to the middle
+                        humanoid.WalkSpeed = 16 -- Normal walking speed
+                    end
+                else
+                    -- Moon Cat is in the middle area, stop it from wandering
+                    if humanoid then
+                        humanoid:MoveTo(moonCatPart.Position) -- Stop moving
+                        humanoid.WalkSpeed = 0 -- Stop walking around
+                    end
                 end
                 
-                wait(0.5) -- Much slower update to prevent lag
+                wait(0.5) -- Check every half second
             end)
             
-            updateStatus("Moon Cat locked in center!", Color3.fromRGB(85, 255, 85))
+            updateStatus("Moon Cat moving to center!", Color3.fromRGB(85, 255, 85))
         else
-            updateStatus("Moon Cat not found!", Color3.fromRGB(255, 85, 85))
+            updateStatus("Moon Cat not found! Make sure it's equipped.", Color3.fromRGB(255, 85, 85))
             autoMiddleMoonCatEnabled = false
             moonCatButton.Text = "🌙 Auto Middle Moon Cat [OFF]"
             moonCatButton.BackgroundColor3 = Color3.fromRGB(255, 85, 85)
@@ -206,11 +233,24 @@ local function toggleAutoMiddleMoonCat()
         moonCatButton.Text = "🌙 Auto Middle Moon Cat [OFF]"
         moonCatButton.BackgroundColor3 = Color3.fromRGB(255, 85, 85) -- Bright red
         moonCatButton.TextColor3 = Color3.fromRGB(255, 255, 255) -- White text on red
-        updateStatus("Moon Cat positioning disabled", Color3.fromRGB(255, 85, 85))
+        updateStatus("Moon Cat can move freely", Color3.fromRGB(255, 85, 85))
         
         if autoMiddleMoonCatConnection then
             autoMiddleMoonCatConnection:Disconnect()
             autoMiddleMoonCatConnection = nil
+        end
+        
+        -- Restore Moon Cat's normal walking speed
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("Model") and obj:FindFirstChild("Humanoid") then
+                local name = obj.Name:lower()
+                if name:find("moon") or name:find("cat") then
+                    local humanoid = obj:FindFirstChild("Humanoid")
+                    if humanoid then
+                        humanoid.WalkSpeed = 16 -- Restore normal speed
+                    end
+                end
+            end
         end
     end
 end
