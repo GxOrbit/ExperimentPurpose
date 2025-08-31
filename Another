@@ -139,7 +139,9 @@ end
 
 -- Auto Middle Moon Cat function
 local autoMiddleMoonCatConnection
-local foundMoonCat = false
+local moonCatFound = false
+local lastMoonCatPosition = nil
+
 local function toggleAutoMiddleMoonCat()
     autoMiddleMoonCatEnabled = not autoMiddleMoonCatEnabled
     
@@ -148,96 +150,67 @@ local function toggleAutoMiddleMoonCat()
         moonCatButton.Text = "🌙 Auto Middle Moon Cat [ON]"
         moonCatButton.BackgroundColor3 = Color3.fromRGB(85, 255, 85) -- Bright green
         moonCatButton.TextColor3 = Color3.fromRGB(0, 0, 0) -- Black text on green
-        updateStatus("Moon Cat Auto-Position: ACTIVE", Color3.fromRGB(85, 255, 85))
+        updateStatus("Searching for Moon Cat...", Color3.fromRGB(255, 165, 0))
         
-        autoMiddleMoonCatConnection = RunService.Heartbeat:Connect(function()
-            if not autoMiddleMoonCatEnabled then return end
-            
-            foundMoonCat = false
-            
-            -- Search for Moon Cat more thoroughly
-            for _, obj in pairs(workspace:GetDescendants()) do
-                if obj.Name == "Moon Cat" or obj.Name:find("Moon Cat") or obj.Name:find("MoonCat") or 
-                   (obj:FindFirstChild("Humanoid") and obj.Name:lower():find("moon")) then
-                    
-                    local petPart = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Torso") or 
-                                   obj:FindFirstChild("Head") or obj.PrimaryPart
-                    
-                    if petPart and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                        foundMoonCat = true
-                        
-                        -- Calculate the CENTER of your plot area (middle position)
-                        local playerPos = player.Character.HumanoidRootPart.Position
-                        local centerPosition = Vector3.new(playerPos.X, playerPos.Y + 2, playerPos.Z) -- 2 studs above ground level
-                        
-                        -- FORCE teleport Moon Cat to exact center
-                        petPart.CFrame = CFrame.new(centerPosition)
-                        petPart.Anchored = true -- Lock it in place completely
-                        
-                        -- Remove ALL body movers that might move it
-                        for _, child in pairs(petPart:GetChildren()) do
-                            if child:IsA("BodyPosition") or child:IsA("BodyVelocity") or child:IsA("BodyAngularVelocity") or
-                               child:IsA("BodyMover") or child:IsA("AlignPosition") or child:IsA("VectorForce") then
-                                child:Destroy()
-                            end
-                        end
-                        
-                        -- Disable pet AI/pathfinding if it exists
-                        local humanoid = obj:FindFirstChild("Humanoid")
-                        if humanoid then
-                            humanoid.PlatformStand = true -- Prevents movement
-                            humanoid:ChangeState(Enum.HumanoidStateType.Physics) -- Force physics state
-                        end
-                        
-                        -- Stop any scripts that might move the pet
-                        for _, script in pairs(obj:GetDescendants()) do
-                            if script:IsA("Script") or script:IsA("LocalScript") then
-                                if script.Name:lower():find("follow") or script.Name:lower():find("move") or 
-                                   script.Name:lower():find("walk") or script.Name:lower():find("pet") then
-                                    script.Disabled = true
-                                end
-                            end
-                        end
-                        
-                        break
-                    end
-                end
+        -- First, find the Moon Cat ONCE and store it
+        local moonCatPet = nil
+        local moonCatPart = nil
+        
+        -- Search for Moon Cat (only once to prevent lag)
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj.Name == "Moon Cat" and obj:FindFirstChild("Humanoid") then
+                moonCatPet = obj
+                moonCatPart = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Torso") or obj:FindFirstChild("Head")
+                break
             end
+        end
+        
+        if moonCatPet and moonCatPart and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            updateStatus("Moon Cat Found! Positioning...", Color3.fromRGB(85, 255, 85))
             
-            wait(0.1)
-        end)
+            -- Calculate CENTER position ONCE
+            local playerPos = player.Character.HumanoidRootPart.Position
+            local centerPos = Vector3.new(playerPos.X, playerPos.Y + 2, playerPos.Z)
+            
+            -- TELEPORT Moon Cat to center ONCE
+            moonCatPart.CFrame = CFrame.new(centerPos)
+            
+            -- Create a simple connection that runs less frequently
+            autoMiddleMoonCatConnection = RunService.Heartbeat:Connect(function()
+                if not autoMiddleMoonCatEnabled or not moonCatPet or not moonCatPart then return end
+                if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
+                
+                -- Only update position if Moon Cat moved away from center
+                local currentPos = moonCatPart.Position
+                local targetPos = player.Character.HumanoidRootPart.Position + Vector3.new(0, 2, 0)
+                local distance = (currentPos - targetPos).Magnitude
+                
+                -- Only move if Moon Cat is more than 2 studs away from center
+                if distance > 2 then
+                    moonCatPart.CFrame = CFrame.new(targetPos)
+                end
+                
+                wait(0.5) -- Much slower update to prevent lag
+            end)
+            
+            updateStatus("Moon Cat locked in center!", Color3.fromRGB(85, 255, 85))
+        else
+            updateStatus("Moon Cat not found!", Color3.fromRGB(255, 85, 85))
+            autoMiddleMoonCatEnabled = false
+            moonCatButton.Text = "🌙 Auto Middle Moon Cat [OFF]"
+            moonCatButton.BackgroundColor3 = Color3.fromRGB(255, 85, 85)
+        end
+        
     else
         -- Button turns RED when not pressed (OFF state)
         moonCatButton.Text = "🌙 Auto Middle Moon Cat [OFF]"
         moonCatButton.BackgroundColor3 = Color3.fromRGB(255, 85, 85) -- Bright red
         moonCatButton.TextColor3 = Color3.fromRGB(255, 255, 255) -- White text on red
-        updateStatus("Moon Cat Auto-Position: DISABLED", Color3.fromRGB(255, 85, 85))
+        updateStatus("Moon Cat positioning disabled", Color3.fromRGB(255, 85, 85))
         
         if autoMiddleMoonCatConnection then
             autoMiddleMoonCatConnection:Disconnect()
-        end
-        
-        -- Restore Moon Cat's normal behavior when disabled
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if obj.Name == "Moon Cat" or obj.Name:find("Moon Cat") or obj.Name:find("MoonCat") then
-                local petPart = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Torso") or 
-                               obj:FindFirstChild("Head") or obj.PrimaryPart
-                if petPart then
-                    petPart.Anchored = false -- Allow movement again
-                end
-                
-                local humanoid = obj:FindFirstChild("Humanoid")
-                if humanoid then
-                    humanoid.PlatformStand = false -- Restore normal movement
-                end
-                
-                -- Re-enable any disabled scripts
-                for _, script in pairs(obj:GetDescendants()) do
-                    if script:IsA("Script") or script:IsA("LocalScript") then
-                        script.Disabled = false
-                    end
-                end
-            end
+            autoMiddleMoonCatConnection = nil
         end
     end
 end
@@ -273,9 +246,15 @@ local isMinimized = false
 minimizeButton.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
     if isMinimized then
+        -- Hide the button and status bar when minimized
+        moonCatButton.Visible = false
+        statusLabel.Visible = false
         mainFrame:TweenSize(UDim2.new(0, 300, 0, 40), "Out", "Quad", 0.3, true)
         minimizeButton.Text = "+"
     else
+        -- Show the button and status bar when restored
+        moonCatButton.Visible = true
+        statusLabel.Visible = true
         mainFrame:TweenSize(UDim2.new(0, 300, 0, 150), "Out", "Quad", 0.3, true)
         minimizeButton.Text = "−"
     end
