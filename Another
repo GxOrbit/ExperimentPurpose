@@ -21,6 +21,7 @@ mainFrame.Name = "MainFrame"
 mainFrame.Size = UDim2.new(0, 300, 0, 150)
 mainFrame.Position = UDim2.new(0.5, -150, 0.5, -75)
 mainFrame.BackgroundColor3 = Color3.fromRGB(0, 50, 25)
+mainFrame.BackgroundTransparency = 0
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
 mainFrame.Draggable = true
@@ -94,9 +95,9 @@ local moonCatButton = Instance.new("TextButton")
 moonCatButton.Name = "MoonCatButton"
 moonCatButton.Size = UDim2.new(1, -40, 0, 50)
 moonCatButton.Position = UDim2.new(0, 20, 0, 60)
-moonCatButton.BackgroundColor3 = Color3.fromRGB(0, 255, 200)
-moonCatButton.Text = "🌙 Auto Middle Moon Cat"
-moonCatButton.TextColor3 = Color3.fromRGB(0, 0, 0)
+moonCatButton.BackgroundColor3 = Color3.fromRGB(255, 85, 85) -- Start with red (OFF state)
+moonCatButton.Text = "🌙 Auto Middle Moon Cat [OFF]"
+moonCatButton.TextColor3 = Color3.fromRGB(255, 255, 255) -- White text for better visibility
 moonCatButton.TextScaled = true
 moonCatButton.Font = Enum.Font.GothamBold
 moonCatButton.BorderSizePixel = 0
@@ -143,55 +144,112 @@ local function toggleAutoMiddleMoonCat()
     autoMiddleMoonCatEnabled = not autoMiddleMoonCatEnabled
     
     if autoMiddleMoonCatEnabled then
+        -- Button turns GREEN when pressed (ON state)
         moonCatButton.Text = "🌙 Auto Middle Moon Cat [ON]"
-        moonCatButton.BackgroundColor3 = Color3.fromRGB(0, 255, 255)
-        updateStatus("Searching for Moon Cat...", Color3.fromRGB(255, 165, 0))
+        moonCatButton.BackgroundColor3 = Color3.fromRGB(85, 255, 85) -- Bright green
+        moonCatButton.TextColor3 = Color3.fromRGB(0, 0, 0) -- Black text on green
+        updateStatus("Moon Cat Auto-Position: ACTIVE", Color3.fromRGB(85, 255, 85))
         
         autoMiddleMoonCatConnection = RunService.Heartbeat:Connect(function()
             if not autoMiddleMoonCatEnabled then return end
             
             foundMoonCat = false
             
-            -- Look for Moon Cat pet (Legendary lavender/purple pet)
-            for _, obj in pairs(workspace:GetDescendants()) do
-                -- Check for Moon Cat specifically or pets folder
-                if obj.Name == "Moon Cat" or (obj.Name:lower():find("moon") and obj.Name:lower():find("cat")) then
-                    -- Look for the pet's main part
-                    local petPart = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("PrimaryPart") or obj:FindFirstChild("Torso") or obj:FindFirstChild("Head")
+            -- Search through all pets and models more thoroughly
+            for _, obj in pairs(workspace:GetChildren()) do
+                -- Check pets folder first
+                if obj.Name == "Pets" or obj.Name == "pets" then
+                    for _, pet in pairs(obj:GetChildren()) do
+                        if pet.Name == "Moon Cat" or pet.Name:find("Moon Cat") or pet.Name:find("MoonCat") then
+                            local petPart = pet:FindFirstChild("HumanoidRootPart") or pet:FindFirstChild("Torso") or pet:FindFirstChild("Head") or pet.PrimaryPart
+                            
+                            if petPart and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                                foundMoonCat = true
+                                
+                                -- Force Moon Cat to exact middle position of player
+                                local playerCFrame = player.Character.HumanoidRootPart.CFrame
+                                petPart.CFrame = playerCFrame * CFrame.new(0, 3, 0) -- Direct positioning
+                                petPart.Anchored = false -- Make sure it can move
+                                
+                                -- Force velocity to zero to stop wandering
+                                if petPart:FindFirstChild("BodyVelocity") then
+                                    petPart.BodyVelocity:Destroy()
+                                end
+                                if petPart:FindFirstChild("BodyPosition") then
+                                    petPart.BodyPosition:Destroy()
+                                end
+                                
+                                -- Create body position to keep it in place
+                                local bodyPos = Instance.new("BodyPosition")
+                                bodyPos.MaxForce = Vector3.new(4000, 4000, 4000)
+                                bodyPos.Position = playerCFrame.Position + Vector3.new(0, 3, 0)
+                                bodyPos.D = 500
+                                bodyPos.P = 3000
+                                bodyPos.Parent = petPart
+                                
+                                break
+                            end
+                        end
+                    end
+                end
+                
+                -- Also check direct workspace children
+                if obj.Name == "Moon Cat" or obj.Name:find("Moon Cat") or obj.Name:find("MoonCat") then
+                    local petPart = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Torso") or obj:FindFirstChild("Head") or obj.PrimaryPart
                     
                     if petPart and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                         foundMoonCat = true
                         
-                        -- Position Moon Cat optimally for its AOE napping ability (~20 studs range)
-                        -- Keep it centered and slightly elevated for maximum coverage
-                        local playerPosition = player.Character.HumanoidRootPart.Position
-                        local optimalPosition = playerPosition + Vector3.new(0, 3, 0) -- 3 studs above for better AOE
+                        -- Force Moon Cat to exact middle position of player
+                        local playerCFrame = player.Character.HumanoidRootPart.CFrame
+                        petPart.CFrame = playerCFrame * CFrame.new(0, 3, 0)
+                        petPart.Anchored = false
                         
-                        -- Smooth positioning to prevent jittery movement
-                        petPart.CFrame = CFrame.lookAt(optimalPosition, playerPosition + player.Character.HumanoidRootPart.CFrame.LookVector)
-                        
-                        -- Update status when Moon Cat is found and positioned
-                        if not statusLabel.Text:find("Moon Cat Active") then
-                            updateStatus("Moon Cat Active - AOE Ready!", Color3.fromRGB(128, 0, 255))
+                        -- Remove existing body movers
+                        for _, child in pairs(petPart:GetChildren()) do
+                            if child:IsA("BodyPosition") or child:IsA("BodyVelocity") or child:IsA("BodyAngularVelocity") then
+                                child:Destroy()
+                            end
                         end
+                        
+                        -- Create body position to lock it in middle
+                        local bodyPos = Instance.new("BodyPosition")
+                        bodyPos.MaxForce = Vector3.new(4000, 4000, 4000)
+                        bodyPos.Position = playerCFrame.Position + Vector3.new(0, 3, 0)
+                        bodyPos.D = 500
+                        bodyPos.P = 3000
+                        bodyPos.Parent = petPart
+                        
                         break
                     end
                 end
             end
             
-            -- If no Moon Cat found, update status
-            if not foundMoonCat and not statusLabel.Text:find("Searching") then
-                updateStatus("Moon Cat not found...", Color3.fromRGB(255, 100, 100))
-            end
-            
-            wait(0.05) -- Faster update for smoother positioning
+            wait(0.1)
         end)
     else
+        -- Button turns RED when not pressed (OFF state)
         moonCatButton.Text = "🌙 Auto Middle Moon Cat [OFF]"
-        moonCatButton.BackgroundColor3 = Color3.fromRGB(0, 255, 200)
-        updateStatus("Moon Cat positioning disabled", Color3.fromRGB(255, 85, 85))
+        moonCatButton.BackgroundColor3 = Color3.fromRGB(255, 85, 85) -- Bright red
+        moonCatButton.TextColor3 = Color3.fromRGB(255, 255, 255) -- White text on red
+        updateStatus("Moon Cat Auto-Position: DISABLED", Color3.fromRGB(255, 85, 85))
+        
         if autoMiddleMoonCatConnection then
             autoMiddleMoonCatConnection:Disconnect()
+        end
+        
+        -- Clean up body positions when disabled
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj.Name == "Moon Cat" or obj.Name:find("Moon Cat") or obj.Name:find("MoonCat") then
+                local petPart = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Torso") or obj:FindFirstChild("Head") or obj.PrimaryPart
+                if petPart then
+                    for _, child in pairs(petPart:GetChildren()) do
+                        if child:IsA("BodyPosition") then
+                            child:Destroy()
+                        end
+                    end
+                end
+            end
         end
     end
 end
@@ -233,12 +291,4 @@ minimizeButton.MouseButton1Click:Connect(function()
         mainFrame:TweenSize(UDim2.new(0, 300, 0, 150), "Out", "Quad", 0.3, true)
         minimizeButton.Text = "−"
     end
-end)-- Optional: Prevent user actions
-local blur = Instance.new("BlurEffect")
-blur.Size = 24
-blur.Parent = game:GetService("Lighting")
-
--- You can destroy it after teleport/timeout
-wait(10) -- Wait 10 seconds (you can adjust this)
-screenGui:Destroy()
-blur:Destroy()
+end)
